@@ -69,13 +69,29 @@
             display: flex;
         }
 
+        /* Группы глаголов в меню */
+        .verb-group-section {
+            width: 100%;
+            margin-bottom: 30px;
+        }
+
+        .group-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--accent-color);
+            margin-bottom: 12px;
+            padding-bottom: 6px;
+            border-bottom: 2px solid var(--border-color);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
         /* Сетка меню */
         .verbs-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
             gap: 10px;
             width: 100%;
-            margin-bottom: 40px;
         }
 
         .verb-item-btn {
@@ -109,7 +125,7 @@
             margin-top: 10px;
         }
 
-        /* Карточка — теперь занимает еще больше места сверху */
+        /* Карточка */
         .card-container {
             position: relative;
             width: 100%;
@@ -249,15 +265,21 @@
             margin-top: 25px;
             width: 100%;
             display: grid;
-            grid-template-columns: 45px 1fr 105px;
+            grid-template-columns: 105px 1fr 105px;
             align-items: center;
             gap: 15px;
             box-sizing: border-box;
             margin-bottom: 20px;
         }
 
-        .back-to-menu-btn {
-            background: none;
+        .left-controls-container {
+            display: flex;
+            gap: 15px;
+            justify-content: flex-start;
+        }
+
+        .back-to-menu-btn, .random-btn {
+            background: var(--paper-bg);
             border: 1px solid var(--accent-color);
             color: var(--accent-color);
             width: 45px;
@@ -270,11 +292,18 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
         }
 
-        .back-to-menu-btn:hover {
+        .back-to-menu-btn:hover, .random-btn:hover {
             background: var(--accent-color);
             color: white;
+        }
+
+        .random-btn.active {
+            background: var(--accent-color);
+            color: white;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
         }
 
         .center-action-area {
@@ -343,7 +372,15 @@
     </div>
 
     <div id="menuScreen" class="screen active">
-        <div class="verbs-grid" id="verbsGrid"></div>
+        <div class="verb-group-section" id="group1Section">
+            <div class="group-title">Группа 1 (be — learn)</div>
+            <div class="verbs-grid" id="verbsGrid1"></div>
+        </div>
+
+        <div class="verb-group-section" id="group2Section">
+            <div class="group-title">Группа 2 (leave — write)</div>
+            <div class="verbs-grid" id="verbsGrid2"></div>
+        </div>
     </div>
 
     <div id="cardScreen" class="screen">
@@ -364,7 +401,18 @@
         </div>
 
         <div class="bottom-controls-row">
-            <button class="back-to-menu-btn" onclick="showMenu()">&lt;</button>
+            <div class="left-controls-container">
+                <button class="back-to-menu-btn" onclick="showMenu()" title="В меню">&lt;</button>
+                <button class="random-btn" id="randomBtn" onclick="toggleRandom()" title="Случайный порядок в текущей группе">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="16 3 21 3 21 8"></polyline>
+                        <line x1="4" y1="20" x2="21" y2="3"></line>
+                        <polyline points="21 16 21 21 16 21"></polyline>
+                        <line x1="15" y1="15" x2="21" y2="21"></line>
+                        <line x1="4" y1="4" x2="9" y2="9"></line>
+                    </svg>
+                </button>
+            </div>
             
             <div class="center-action-area">
                 <button class="action-btn" id="actionBtn" onclick="nextStep()">Показать форму</button>
@@ -484,13 +532,19 @@
             { v1: "write", v2: "wrote", v3: "written", tr: "писать" }
         ];
 
+        const leaveIndex = verbs.findIndex(v => v.v1 === "leave");
+
         let currentIndex = 0;
         let currentStep = 0; 
         let isAnimating = false;
+        let isRandom = false;
 
         const menuScreen = document.getElementById('menuScreen');
         const cardScreen = document.getElementById('cardScreen');
-        const verbsGrid = document.getElementById('verbsGrid');
+        const verbsGrid1 = document.getElementById('verbsGrid1');
+        const verbsGrid2 = document.getElementById('verbsGrid2');
+        const group1Section = document.getElementById('group1Section');
+        const group2Section = document.getElementById('group2Section');
         const searchInput = document.getElementById('searchInput');
         const searchWrapper = document.getElementById('searchWrapper');
         const cardContainer = document.getElementById('cardContainer');
@@ -502,28 +556,35 @@
         const actionBtn = document.getElementById('actionBtn');
         const navContainer = document.getElementById('navContainer');
         const gradeBadge = document.getElementById('gradeBadge');
+        const randomBtn = document.getElementById('randomBtn');
 
         function renderMenu() {
-            verbsGrid.innerHTML = '';
+            verbsGrid1.innerHTML = '';
+            verbsGrid2.innerHTML = '';
+
             verbs.forEach((verb, index) => {
                 const btn = document.createElement('button');
                 btn.className = 'verb-item-btn';
                 
-                // Передаем все формы и перевод в атрибуты для комплексного поиска
                 btn.setAttribute('data-v1', verb.v1.toLowerCase());
                 btn.setAttribute('data-v2', verb.v2.toLowerCase());
                 btn.setAttribute('data-v3', verb.v3.toLowerCase());
                 btn.setAttribute('data-tr', verb.tr.toLowerCase());
                 
                 btn.onclick = () => startQuiz(index);
-                btn.innerHTML = `<span>${verb.v1}</span>`; // Перевод полностью убран из кнопок
-                verbsGrid.appendChild(btn);
+                btn.innerHTML = `<span>${verb.v1}</span>`;
+
+                if (index < leaveIndex) {
+                    verbsGrid1.appendChild(btn);
+                } else {
+                    verbsGrid2.appendChild(btn);
+                }
             });
         }
 
-        function filterVerbs() {
-            const query = searchInput.value.toLowerCase().trim();
-            const items = verbsGrid.getElementsByClassName('verb-item-btn');
+        function filterGrid(grid, section, query) {
+            const items = grid.getElementsByClassName('verb-item-btn');
+            let visibleCount = 0;
 
             for (let item of items) {
                 const v1 = item.getAttribute('data-v1');
@@ -531,25 +592,38 @@
                 const v3 = item.getAttribute('data-v3');
                 const tr = item.getAttribute('data-tr');
                 
-                // Поиск проверяет соответствие по 1-й, 2-й, 3-й форме или по переводу
                 if (v1.includes(query) || v2.includes(query) || v3.includes(query) || tr.includes(query)) {
                     item.style.display = 'flex';
+                    visibleCount++;
                 } else {
                     item.style.display = 'none';
                 }
             }
+
+            section.style.display = visibleCount > 0 ? 'block' : 'none';
+        }
+
+        function filterVerbs() {
+            const query = searchInput.value.toLowerCase().trim();
+            filterGrid(verbsGrid1, group1Section, query);
+            filterGrid(verbsGrid2, group2Section, query);
+        }
+
+        function toggleRandom() {
+            isRandom = !isRandom;
+            randomBtn.classList.toggle('active', isRandom);
         }
 
         function startQuiz(index) {
             menuScreen.classList.remove('active');
-            searchWrapper.style.display = 'none'; // Скрываем поиск на экране карточки
+            searchWrapper.style.display = 'none';
             cardScreen.classList.add('active');
             loadVerb(index);
         }
 
         function showMenu() {
             cardScreen.classList.remove('active');
-            searchWrapper.style.display = 'block'; // Возвращаем поиск в меню
+            searchWrapper.style.display = 'block';
             menuScreen.classList.add('active');
             searchInput.value = "";
             filterVerbs();
@@ -562,7 +636,7 @@
             f1.innerText = v.v1;
             f2.innerText = v.v2;
             f3.innerText = v.v3;
-            transText.innerText = v.tr; // На карточке перевод по-прежнему отображается полноценно
+            transText.innerText = v.tr;
 
             f1.classList.add('visible');
             f2.classList.remove('visible');
@@ -594,6 +668,28 @@
             }
         }
 
+        function getNextVerbIndex(direction) {
+            if (isRandom) {
+                const isGroup1 = currentIndex < leaveIndex;
+                const min = isGroup1 ? 0 : leaveIndex;
+                const max = isGroup1 ? leaveIndex - 1 : verbs.length - 1;
+
+                if (max <= min) return min;
+
+                let randIndex;
+                do {
+                    randIndex = Math.floor(Math.random() * (max - min + 1)) + min;
+                } while (randIndex === currentIndex);
+
+                return randIndex;
+            } else {
+                let newIndex = currentIndex + direction;
+                if (newIndex >= verbs.length) newIndex = 0;
+                if (newIndex < 0) newIndex = verbs.length - 1;
+                return newIndex;
+            }
+        }
+
         function triggerNavigate(direction) {
             if (isAnimating) return;
             isAnimating = true;
@@ -612,10 +708,7 @@
                     cardContainer.classList.add('slide-in-left');
                 }
 
-                let newIndex = currentIndex + direction;
-                if (newIndex >= verbs.length) newIndex = 0;
-                if (newIndex < 0) newIndex = verbs.length - 1;
-                
+                const newIndex = getNextVerbIndex(direction);
                 loadVerb(newIndex);
 
                 setTimeout(() => {
